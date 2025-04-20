@@ -8,9 +8,12 @@ import {
   StyleSheet,
   Alert,
   FlatList,
+  Dimensions,
+  ScrollView,
 } from "react-native";
 import { loadCustomers, saveCustomers } from "@/hooks/useCustomer";
 import { useAppwriteFormData } from "@/hooks/useAppwriteFormData";
+import { AntDesign, Feather } from "@expo/vector-icons";
 
 type CustomerDetailsProps = {
   onSearchChange: (searchTerm: string) => void;
@@ -27,6 +30,7 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({
 }) => {
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [isSelectModalVisible, setSelectModalVisible] = useState(false);
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerNumber, setCustomerNumber] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
@@ -40,6 +44,12 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({
   const [selectedCustomer, setSelectedCustomer] = useState(initialCustomer || null);
   const [numberError, setNumberError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<{
+    name: string;
+    number: string;
+    address: string;
+    originalNumber: string;
+  } | null>(null);
 
   const { getAllFormData } = useAppwriteFormData();
 
@@ -155,13 +165,129 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({
     onSelect(customer);
   };
 
+  const handleEditCustomer = (customer: { name: string; number: string; address: string }) => {
+    setEditingCustomer({
+      ...customer,
+      originalNumber: customer.number
+    });
+    setCustomerName(customer.name);
+    setCustomerNumber(customer.number);
+    setCustomerAddress(customer.address);
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateCustomer = () => {
+    const numberValidationError = validateNumber(customerNumber);
+    if (numberValidationError) {
+      setNumberError(numberValidationError);
+      return;
+    }
+
+    if (!customerName || !customerAddress || !editingCustomer) {
+      Alert.alert("Error", "All fields are required!");
+      return;
+    }
+
+    const updatedCustomer = {
+      name: customerName,
+      number: customerNumber,
+      address: customerAddress,
+    };
+
+    // Check if the number was changed and if the new number already exists
+    if (editingCustomer.originalNumber !== customerNumber) {
+      const numberExists = storedCustomers.some(
+        customer => customer.number === customerNumber && customer.number !== editingCustomer.originalNumber
+      );
+      
+      if (numberExists) {
+        Alert.alert("Error", "A customer with this phone number already exists!");
+        return;
+      }
+    }
+
+    const updatedCustomers = storedCustomers.map(customer => 
+      customer.number === editingCustomer.originalNumber ? updatedCustomer : customer
+    );
+
+    saveCustomers(updatedCustomers);
+    setStoredCustomers(updatedCustomers);
+    setFilteredCustomers(updatedCustomers);
+    
+    // Update selected customer if it's the one being edited
+    if (selectedCustomer && selectedCustomer.number === editingCustomer.originalNumber) {
+      setSelectedCustomer(updatedCustomer);
+      onSelect(updatedCustomer);
+    }
+
+    setEditModalVisible(false);
+    setEditingCustomer(null);
+    setCustomerName("");
+    setCustomerNumber("");
+    setCustomerAddress("");
+    setNumberError("");
+  };
+
+  const handleDeleteCustomer = (customerNumber: string) => {
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete this customer?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            const updatedCustomers = storedCustomers.filter(
+              customer => customer.number !== customerNumber
+            );
+            
+            saveCustomers(updatedCustomers);
+            setStoredCustomers(updatedCustomers);
+            setFilteredCustomers(updatedCustomers);
+            
+            // Clear selected customer if it's the one being deleted
+            if (selectedCustomer && selectedCustomer.number === customerNumber) {
+              setSelectedCustomer(null);
+              onSelect(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const clearSelectedCustomer = () => {
+    setSelectedCustomer(null);
+    onSelect(null);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Customer Details</Text>
 
       {selectedCustomer && (
         <View style={styles.selectedCustomerContainer}>
-          <Text style={styles.subTitle}>Selected Customer</Text>
+          <View style={styles.selectedCustomerHeader}>
+            <Text style={styles.subTitle}>Selected Customer</Text>
+            <View style={styles.customerActions}>
+              <TouchableOpacity onPress={() => handleEditCustomer(selectedCustomer)}>
+                <Feather name="edit" size={20} color="#3B82F6" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => handleDeleteCustomer(selectedCustomer.number)}
+                style={styles.deleteButton}
+              >
+                <Feather name="trash-2" size={20} color="#EF4444" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={clearSelectedCustomer}>
+                <AntDesign name="close" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+          </View>
           <View style={styles.customerBox}>
             <Text style={styles.customerName}>{selectedCustomer.name}</Text>
             <Text style={styles.customerInfo}>Number: {selectedCustomer.number}</Text>
@@ -217,49 +343,129 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Customer</Text>
+            <Text style={styles.modalTitle}>Add New Customer</Text>
+            
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
+              <View style={styles.modalInputContainer}>
+                <Text style={styles.modalLabel}>Customer Name</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Enter Name"
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                />
+              </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.subTitle}>Customer Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter Name"
-                value={customerName}
-                onChangeText={setCustomerName}
-              />
-            </View>
+              <View style={styles.modalInputContainer}>
+                <Text style={styles.modalLabel}>Customer Number</Text>
+                <TextInput
+                  style={[styles.modalInput, numberError ? styles.inputError : null]}
+                  placeholder="Enter 10-digit Number"
+                  keyboardType="numeric"
+                  maxLength={10}
+                  value={customerNumber}
+                  onChangeText={(text) => {
+                    setCustomerNumber(text);
+                    setNumberError("");
+                  }}
+                />
+                {numberError && <Text style={styles.errorText}>{numberError}</Text>}
+              </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.subTitle}>Customer Number</Text>
-              <TextInput
-                style={[styles.input, numberError ? styles.inputError : null]}
-                placeholder="Enter Number"
-                keyboardType="numeric"
-                value={customerNumber}
-                onChangeText={(text) => {
-                  setCustomerNumber(text);
-                  setNumberError("");
-                }}
-              />
-              {numberError && <Text style={styles.errorText}>{numberError}</Text>}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.subTitle}>Customer Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter Address"
-                value={customerAddress}
-                onChangeText={setCustomerAddress}
-              />
-            </View>
+              <View style={styles.modalInputContainer}>
+                <Text style={styles.modalLabel}>Customer Address</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.addressInput]}
+                  placeholder="Enter Address"
+                  multiline
+                  numberOfLines={3}
+                  value={customerAddress}
+                  onChangeText={setCustomerAddress}
+                />
+              </View>
+            </ScrollView>
 
             <View style={styles.modalButtonContainer}>
-              <TouchableOpacity onPress={() => setAddModalVisible(false)} style={styles.cancelButton}>
+              <TouchableOpacity 
+                onPress={() => setAddModalVisible(false)} 
+                style={[styles.modalButton, styles.cancelButton]}
+              >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleAddCustomer} style={styles.addButton}>
+              <TouchableOpacity 
+                onPress={handleAddCustomer} 
+                style={[styles.modalButton, styles.addButton]}
+              >
                 <Text style={styles.buttonText}>Add Customer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Customer Modal */}
+      <Modal
+        visible={isEditModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Customer</Text>
+            
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
+              <View style={styles.modalInputContainer}>
+                <Text style={styles.modalLabel}>Customer Name</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Enter Name"
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                />
+              </View>
+
+              <View style={styles.modalInputContainer}>
+                <Text style={styles.modalLabel}>Customer Number</Text>
+                <TextInput
+                  style={[styles.modalInput, numberError ? styles.inputError : null]}
+                  placeholder="Enter 10-digit Number"
+                  keyboardType="numeric"
+                  maxLength={10}
+                  value={customerNumber}
+                  onChangeText={(text) => {
+                    setCustomerNumber(text);
+                    setNumberError("");
+                  }}
+                />
+                {numberError && <Text style={styles.errorText}>{numberError}</Text>}
+              </View>
+
+              <View style={styles.modalInputContainer}>
+                <Text style={styles.modalLabel}>Customer Address</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.addressInput]}
+                  placeholder="Enter Address"
+                  multiline
+                  numberOfLines={3}
+                  value={customerAddress}
+                  onChangeText={setCustomerAddress}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity 
+                onPress={() => setEditModalVisible(false)} 
+                style={[styles.modalButton, styles.cancelButton]}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleUpdateCustomer} 
+                style={[styles.modalButton, styles.addButton]}
+              >
+                <Text style={styles.buttonText}>Update Customer</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -274,18 +480,37 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({
         onRequestClose={() => setSelectModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: "80%" }]}>
+          <View style={[styles.modalContent, styles.selectModalContent]}>
             <Text style={styles.modalTitle}>Select Customer</Text>
 
             <FlatList
               data={filteredCustomers}
               keyExtractor={(item, index) => `${item.number}-${index}`}
               renderItem={({ item }) => (
-                <TouchableOpacity onPress={() => handleSelectCustomer(item)} style={styles.listItem}>
-                  <Text style={styles.customerName}>{item.name}</Text>
-                  <Text style={styles.customerInfo}>Number: {item.number}</Text>
-                  <Text style={styles.customerInfo}>Address: {item.address}</Text>
-                </TouchableOpacity>
+                <View style={styles.listItemContainer}>
+                  <TouchableOpacity 
+                    onPress={() => handleSelectCustomer(item)} 
+                    style={styles.listItem}
+                  >
+                    <Text style={styles.customerName}>{item.name}</Text>
+                    <Text style={styles.customerInfo}>Number: {item.number}</Text>
+                    <Text style={styles.customerInfo}>Address: {item.address}</Text>
+                  </TouchableOpacity>
+                  <View style={styles.itemActions}>
+                    <TouchableOpacity 
+                      onPress={() => handleEditCustomer(item)}
+                      style={styles.editButton}
+                    >
+                      <Feather name="edit" size={18} color="#3B82F6" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => handleDeleteCustomer(item.number)}
+                      style={styles.deleteButton}
+                    >
+                      <Feather name="trash-2" size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
               )}
               ListEmptyComponent={
                 <Text style={styles.noCustomers}>
@@ -297,7 +522,7 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({
 
             <TouchableOpacity 
               onPress={() => setSelectModalVisible(false)} 
-              style={styles.cancelButton}
+              style={[styles.modalButton, styles.cancelButton]}
             >
               <Text style={styles.cancelButtonText}>Close</Text>
             </TouchableOpacity>
@@ -307,6 +532,8 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({
     </View>
   );
 };
+
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -330,6 +557,19 @@ const styles = StyleSheet.create({
     padding: 10,
     borderColor: "#ddd",
     borderRadius: 8,
+  },
+  selectedCustomerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  customerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  deleteButton: {
+    marginLeft: 8,
   },
   subTitle: { 
     fontSize: 14, 
@@ -399,54 +639,100 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    width: "80%",
+    width: width * 0.85,
+    maxHeight: height * 0.7,
     backgroundColor: "white",
-    padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalScrollContent: {
+    paddingBottom: 10,
   },
   modalTitle: { 
-    fontSize: 18, 
+    fontSize: 20, 
     fontWeight: "bold", 
     color: "#047857", 
-    marginBottom: 6 
-  },
-  modalButtonContainer: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    width: "100%" 
-  },
-  addButton: { 
-    backgroundColor: "#34D399", 
-    padding: 10, 
-    borderRadius: 5 
-  },
-  cancelButton: { 
-    backgroundColor: "#ccc", 
-    padding: 10, 
-    borderRadius: 5,
-    marginTop: 10,
-    alignSelf: 'center',
-    width: '100%'
-  },
-  cancelButtonText: { 
-    color: "#333",
+    marginBottom: 20,
     textAlign: 'center'
+  },
+  modalInputContainer: {
+    marginBottom: 15,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    color: '#333',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#f8f8f8',
+  },
+  addressInput: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  modalButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    gap: 10,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButton: {
+    backgroundColor: "#34D399",
+  },
+  cancelButton: {
+    backgroundColor: "#f0f0f0",
+  },
+  cancelButtonText: {
+    color: "#333",
+    fontWeight: '600',
   },
   noCustomers: { 
     textAlign: "center", 
-    marginVertical: 10 
+    marginVertical: 10,
+    color: '#666',
+  },
+  listItemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
   listItem: {
-    flexDirection: "column",
-    alignItems: "flex-start",
-    padding: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    padding: 12,
+    flex: 1,
+  },
+  itemActions: {
+    flexDirection: 'row',
+    paddingRight: 8,
+  },
+  editButton: {
+    marginRight: 12,
   },
   list: {
-    maxHeight: 400,
     width: "100%",
     marginBottom: 10,
+  },
+  selectModalContent: {
+    maxHeight: height * 0.8,
   },
 });
 

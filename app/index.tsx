@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AntDesign } from "@expo/vector-icons";
@@ -14,34 +15,29 @@ import { useRouter } from "expo-router";
 import useFormDataStorage from "../hooks/useFormData";
 import DataCard from "@/components/DataCard";
 import FilterComponent from "@/components/filter_section";
-import Photos from "@/components/photos";
-import { useAppwriteFormData } from "../hooks/useAppwriteFormData"; // Import the Appwrite hook
+import { useAppwriteFormData } from "../hooks/useAppwriteFormData";
 
-// Type definition for the filter structure
 interface Filters {
   serviceCenter: string | null;
   serviceProvider: string | null;
   selectedDate: Date | null;
-  customerSearch: string; // Ensuring it is always a string
-  orderStatus: string | null; // New filter for order status
+  customerSearch: string;
+  orderStatus: string | null;
 }
 
 export default function Index() {
   const router = useRouter();
   const { formDataList, deleteFormData } = useFormDataStorage();
+  const { createFormData, getFormDataById, updateFormData } = useAppwriteFormData();
 
-  const { createFormData, getFormDataById, updateFormData } = useAppwriteFormData(); // Destructure the createFormData function
-
-  // State for filters
   const [filters, setFilters] = useState<Filters>({
     serviceCenter: null,
     serviceProvider: null,
     selectedDate: null,
-    customerSearch: "", // Ensuring a default empty string
-    orderStatus: null, // Initialize order status filter
+    customerSearch: "",
+    orderStatus: null,
   });
 
-  // Memoized filtered data to prevent unnecessary re-renders
   const filteredData = useMemo(() => {
     return formDataList.filter((data) => {
       const matchesServiceCenter = filters.serviceCenter
@@ -52,7 +48,6 @@ export default function Index() {
         ? data.repairPartnerDetails.selectedInHouseOption === filters.serviceProvider
         : true;
   
-      // Handling null `pickupDate` gracefully
       const matchesDate = filters.selectedDate
         ? data.estimateDetails.pickupDate &&
           new Date(data.estimateDetails.pickupDate).toDateString() ===
@@ -64,9 +59,8 @@ export default function Index() {
           data.selectedCustomer?.number.includes(filters.customerSearch)
         : true;
   
-      // Updated: Support multi-select for order status
-      const matchesOrderStatus = filters.orderStatus?.length
-        ? filters.orderStatus.includes(data.orderDetails.orderStatus)
+      const matchesOrderStatus = filters.orderStatus
+        ? data.orderDetails.orderStatus === filters.orderStatus
         : true;
   
       return (
@@ -77,9 +71,8 @@ export default function Index() {
         matchesOrderStatus
       );
     });
-  }, [formDataList, filters]); // Runs only when dependencies change
-  
-  // Format the date, return 'N/A' if null
+  }, [formDataList, filters]);
+
   const formatDate = (date: Date | null): string => {
     if (!date) return "N/A";
     return new Date(date).toLocaleDateString("en-US", {
@@ -89,7 +82,6 @@ export default function Index() {
     });
   };
 
-  // Edit the selected record
   const handleEdit = (id: string) => {
     router.push(`./edit_order/${id}`);
   };
@@ -98,7 +90,6 @@ export default function Index() {
     router.push(`./view_orders/${id}`);
   };
 
-  // Delete the selected record
   const handleDelete = async (id: string) => {
     await deleteFormData(id);
   };
@@ -107,59 +98,51 @@ export default function Index() {
     return JSON.stringify(obj1) === JSON.stringify(obj2);
   };
 
-  // Sync data to Appwrite
- const handleSync = async () => {
-  try {
-    const dataToSync = [...formDataList];
-    const syncedData = [];
-    const failedData = [];
+  const handleSync = async () => {
+    try {
+      const dataToSync = [...formDataList];
+      const syncedData = [];
+      const failedData = [];
 
-    for (const data of dataToSync) {
-      try {
-        // Check if the data already exists in Appwrite
-        const existingData = await getFormDataById(data.id);
+      for (const data of dataToSync) {
+        try {
+          const existingData = await getFormDataById(data.id);
 
-        if (existingData) {
-          // Compare the existing data with the local data
-          const isDataModified = !isEqual(data, existingData);
+          if (existingData) {
+            const isDataModified = !isEqual(data, existingData);
 
-          if (isDataModified) {
-            // Update the existing record if it has been modified
-            await updateFormData(data.id, data);
-            syncedData.push(data);
+            if (isDataModified) {
+              await updateFormData(data.id, data);
+              syncedData.push(data);
+            } else {
+              continue;
+            }
           } else {
-            // Skip if the data has not been modified
-            continue;
+            await createFormData(data);
+            syncedData.push(data);
           }
-        } else {
-          // If data does not exist, create a new record
-          await createFormData(data);
-          syncedData.push(data);
+        } catch (error) {
+          console.error(`Error syncing data with ID ${data.id}:`, error);
+          failedData.push(data);
         }
-      } catch (error) {
-        console.error(`Error syncing data with ID ${data.id}:`, error);
-        failedData.push(data);
       }
-    }
 
-    // Handle the results of the sync operation
-    if (failedData.length > 0) {
-      alert(`Some data failed to sync. Please try again.`);
-    } else {
-      alert(`Data synced successfully!`);
-    }
+      if (failedData.length > 0) {
+        alert(`Some data failed to sync. Please try again.`);
+      } else {
+        alert(`Data synced successfully!`);
+      }
 
-    // Optionally, retry syncing failed data after a delay
-    if (failedData.length > 0) {
-      setTimeout(() => {
-        handleSync(); // Retry syncing failed data
-      }, 5000);
+      if (failedData.length > 0) {
+        setTimeout(() => {
+          handleSync();
+        }, 5000);
+      }
+    } catch (error) {
+      console.error("Error during sync process:", error);
+      alert("Failed to sync data. Please check your connection and try again.");
     }
-  } catch (error) {
-    console.error("Error during sync process:", error);
-    alert("Failed to sync data. Please check your connection and try again.");
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -172,9 +155,6 @@ export default function Index() {
           <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}></TouchableOpacity>
           <Text style={styles.headerTitle}>All Records</Text>
           <View style={styles.rightButtons}>
-            <TouchableOpacity>
-              <AntDesign name="arrowdown" size={22} color="#fff" />
-            </TouchableOpacity>
             <TouchableOpacity onPress={handleSync}>
               <AntDesign name="sync" size={22} color="#fff" />
             </TouchableOpacity>
@@ -199,23 +179,22 @@ export default function Index() {
               <Text style={styles.emptyText}>No records found.</Text>
             </View>
           ) : (
-            filteredData.map((data: any) => {
-              console.log("Rendering DataCard with data:", data);
-              return (
-                <DataCard
-                  key={data.id}
-                  imageUrl={data.deviceKYC?.cameraData[0]}
-                  orderStatus={data.orderDetails.orderStatus}
-                  orderModel={data.orderDetails.deviceModel}
-                  customerName={data.selectedCustomer?.name || "N/A"}
-                  customerNumber={data.selectedCustomer?.number || "N/A"}
-                  date={formatDate(data.estimateDetails.pickupDate)}
-                  onEdit={() => handleEdit(data.id)}
-                  onView={() => handleView(data.id)}
-                  onDelete={() => handleDelete(data.id)}
-                />
-              );
-            })
+            filteredData.map((data: any, index: number) => (
+              <DataCard
+                key={data.id}
+                serialNo={index + 1}
+                imageUrl={data.deviceKYC?.cameraData[0] || 'https://via.placeholder.com/120x210'} 
+                orderId={data.id}
+                orderStatus={data.orderDetails.orderStatus}
+                orderModel={data.orderDetails.deviceModel}
+                customerName={data.selectedCustomer?.name || "N/A"}
+                customerNumber={data.selectedCustomer?.number || "N/A"}
+                date={formatDate(data.estimateDetails.pickupDate)}
+                onEdit={() => handleEdit(data.id)}
+                onView={() => handleView(data.id)}
+                onDelete={() => handleDelete(data.id)}
+              />
+            ))
           )}
         </ScrollView>
 
@@ -293,4 +272,4 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginTop: 4,
   },
-}); 
+});

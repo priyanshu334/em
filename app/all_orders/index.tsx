@@ -13,17 +13,19 @@ import { AntDesign } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import DataCard from "@/components/DataCard";
 import FilterComponent from "@/components/filter_section";
-import { useAppwriteFormData } from "@/hooks/useAppwriteFormData";  // Import the Appwrite hook
+import { useAppwriteFormData } from "@/hooks/useAppwriteFormData";
 import { Models } from "appwrite";
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 // Type definition for the filter structure
 interface Filters {
-    serviceCenter: string | null;
-    serviceProvider: string | null;
-    selectedDate: Date | null;
-    customerSearch: string; // Ensuring it is always a string
-    orderStatus: string | null; // New filter for order status
-  }
+  serviceCenter: string | null;
+  serviceProvider: string | null;
+  selectedDate: Date | null;
+  customerSearch: string;
+  orderStatus: string | null;
+}
 
 export default function Index() {
   const router = useRouter();
@@ -31,13 +33,13 @@ export default function Index() {
 
   // State for form data and filters
   const [formDataList, setFormDataList] = useState<Models.Document[]>([]);
-   const [filters, setFilters] = useState<Filters>({
-      serviceCenter: null,
-      serviceProvider: null,
-      selectedDate: null,
-      customerSearch: "", // Ensuring a default empty string
-      orderStatus: null, // Initialize order status filter
-    });
+  const [filters, setFilters] = useState<Filters>({
+    serviceCenter: null,
+    serviceProvider: null,
+    selectedDate: null,
+    customerSearch: "",
+    orderStatus: null,
+  });
 
   // Fetch all form data on component mount
   useEffect(() => {
@@ -47,9 +49,76 @@ export default function Index() {
   const fetchFormData = async () => {
     try {
       const data = await getAllFormData();
-      setFormDataList(data); // data is always an array, even if empty
+      setFormDataList(data);
     } catch (error) {
       console.error("Error fetching form data:", error);
+    }
+  };
+
+  // Convert data to CSV format
+  const convertToCSV = (data: Models.Document[]) => {
+    if (data.length === 0) return '';
+    
+    const headers = [
+      'Order ID',
+      'Customer Name',
+      'Customer Number',
+      'Device Model',
+      'Order Status',
+      'Pickup Date',
+      'Service Center',
+      'Service Provider',
+      'Total Estimate'
+    ].join(',');
+  
+    const rows = data.map(item => {
+      return [
+        `"${item.$id}"`,
+        `"${item.selectedCustomer?.name || 'N/A'}"`,
+        `"${item.selectedCustomer?.number || 'N/A'}"`,
+        `"${item.orderDetails.deviceModel || 'N/A'}"`,
+        `"${item.orderDetails.orderStatus || 'N/A'}"`,
+        `"${formatDate(item.estimateDetails.pickupDate)}"`,
+        `"${item.repairPartnerDetails.selectedServiceCenterOption || 'N/A'}"`,
+        `"${item.repairPartnerDetails.selectedInHouseOption || 'N/A'}"`,
+        `"${item.estimateDetails.totalEstimate || 'N/A'}"`
+      ].join(',');
+    });
+  
+    return [headers, ...rows].join('\n');
+  };
+
+  // Download CSV file
+  const downloadCSV = async () => {
+    if (filteredData.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    try {
+      const csvData = convertToCSV(filteredData);
+      const date = new Date();
+      const timestamp = date.toISOString().replace(/[:.]/g, '-');
+      const filename = `orders_${timestamp}.csv`;
+      const fileUri = FileSystem.documentDirectory + filename;
+
+      await FileSystem.writeAsStringAsync(fileUri, csvData, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export Orders as CSV',
+          UTI: 'public.comma-separated-values-text',
+        });
+      } else {
+        alert('Sharing not available on this platform');
+      }
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV');
     }
   };
 
@@ -75,17 +144,17 @@ export default function Index() {
           data.selectedCustomer?.number.includes(filters.customerSearch)
         : true;
 
-        const matchesOrderStatus = filters.orderStatus?.length
-        ? filters.orderStatus.includes(data.orderDetails.orderStatus)
+      const matchesOrderStatus = filters.orderStatus
+        ? data.orderDetails.orderStatus === filters.orderStatus
         : true;
 
-        return (
-            matchesServiceCenter &&
-            matchesServiceProvider &&
-            matchesDate &&
-            matchesCustomerSearch &&
-            matchesOrderStatus
-          );
+      return (
+        matchesServiceCenter &&
+        matchesServiceProvider &&
+        matchesDate &&
+        matchesCustomerSearch &&
+        matchesOrderStatus
+      );
     });
   }, [formDataList, filters]);
 
@@ -118,6 +187,28 @@ export default function Index() {
     }
   };
 
+  const formatOrderId = (id: string) => {
+    if (!id) return "N/A";
+    return `#${id.slice(-3).toUpperCase()}`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "pending":
+        return "#A52A2A"; // Brown
+      case "processing":
+        return "#FF69B4"; // Pink
+      case "shipped":
+        return "#007bff"; // Blue
+      case "delivered":
+        return "#28a745"; // Green
+      case "cancelled":
+        return "#dc3545"; // Red
+      default:
+        return "#6c757d"; // Default Gray
+    }
+  };
+ 
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -131,11 +222,10 @@ export default function Index() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>All Records</Text>
           <View style={styles.rightButtons}>
-                      <TouchableOpacity>
-                        <AntDesign name="arrowdown" size={22} color="#fff" />
-                      </TouchableOpacity>
-                   
-                    </View>
+            <TouchableOpacity onPress={downloadCSV}>
+              <AntDesign name="arrowdown" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Scrollable Content */}
@@ -149,10 +239,12 @@ export default function Index() {
               <Text style={styles.emptyText}>No records found.</Text>
             </View>
           ) : (
-            filteredData.map((data) => (
+            filteredData.map((data, index) => (
               <DataCard
-                key={data.$id} // Use Appwrite's document ID
-                imageUrl={data.deviceKYC?.cameraData[0]}
+                key={data.$id}
+                serialNo={index + 1}
+                imageUrl={data.deviceKYC?.cameraData[0] || 'https://via.placeholder.com/120x210'}
+                orderId={data.$id}
                 orderStatus={data.orderDetails.orderStatus}
                 orderModel={data.orderDetails.deviceModel}
                 customerName={data.selectedCustomer?.name || "N/A"}

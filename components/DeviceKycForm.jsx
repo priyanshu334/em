@@ -181,9 +181,7 @@ const DeviceKYCForm = ({ onSubmit, initialData }) => {
             {formData.patternLock ? "Change Pattern Lock" : "Set Pattern Lock"}
           </Text>
         </TouchableOpacity>
-        <Text style={styles.patternLockStatus}>
-          {formData.patternLock ? "Pattern Lock Set" : "No Pattern Lock Set"}
-        </Text>
+       
       </View>
 
       {/* Accessories List */}

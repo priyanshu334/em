@@ -32,169 +32,213 @@ const ViewOrders = () => {
   const [orderData, setOrderData] = useState<any>(null);
   const phoneNumber = orderData?.selectedCustomer?.number || "";
 
-  
-    const messageText = "Hello! This is a test message.";
-  
-    // Handler for phone, message, and WhatsApp actions
-    const handlePhonePress = () => {
-      const phoneUrl = `tel:${phoneNumber}`;
-      Linking.openURL(phoneUrl).catch(() =>
-        Alert.alert("Error", "Phone app could not be opened.")
-      );
-    };
-    const RhandlePhonePress = () => {
-      const phoneUrl = `tel:${phoneNumber}`;
-      Linking.openURL(phoneUrl).catch(() =>
-        Alert.alert("Error", "Phone app could not be opened.")
-      );
-    };
-  
-  
-    const generateMessageText = () => {
-      if (!orderData) return "No order details available.";
+  // Function to format date in DD/MM/YYYY format
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
     
-      return `
-    📌 *Computer Empire - Order Update* 📌
-    👤 *Receiver:* ${orderData.name}
-    💼 *Designation:* ${orderData.designation}
-    ${orderData.selectedCustomer ? `
-    👤 *Customer:* ${orderData.selectedCustomer.name}
-    📞 *Contact:* ${orderData.selectedCustomer.number}
-    📍 *Address:* ${orderData.selectedCustomer.address}
-    ` : ""}
-    📱 *Device Model:* ${orderData.orderDetails.deviceModel}
-    📦 *Order Status:* ${orderData.orderDetails.orderStatus}
-    🔧 *Problems:* ${orderData.orderDetails.problems.join(", ")}
-    💰 *Estimated Repair Cost:* ₹${orderData.estimateDetails.repairCost}
-    💵 *Advance Paid:* ₹${orderData.estimateDetails.advancePaid}
-    📅 *Pickup Date:* ${orderData.estimateDetails.pickupDate || "N/A"}
-    ⏰ *Pickup Time:* ${orderData.estimateDetails.pickupTime || "N/A"}
-    🏢 *Repair Partner:* ${orderData.repairPartnerDetails.selectedRepairStation || "N/A"}
-    🏠 *In-House Option:* ${orderData.repairPartnerDetails.selectedInHouseOption || "N/A"}
-    🏬 *Service Center:* ${orderData.repairPartnerDetails.selectedServiceCenterOption || "N/A"}
-    📅 *Repair Pickup Date:* ${orderData.repairPartnerDetails.pickupDate || "N/A"}
-    ⏰ *Repair Pickup Time:* ${orderData.repairPartnerDetails.pickupTime || "N/A"}
-    
-    📞 For any queries, please contact us.
-      `.trim();
-    };
-    
-    const handleMessagePress = () => {
-      const messageText = generateMessageText();
-      const messageUrl = `sms:${phoneNumber}?body=${encodeURIComponent(messageText)}`;
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "N/A";
       
-      Linking.openURL(messageUrl).catch(() =>
-        Alert.alert("Error", "Message app could not be opened.")
-      );
-    };
-    const RhandleMessagePress = () => {
-      const messageText = generateMessageText();
-      const messageUrl = `sms:${phoneNumber}?body=${encodeURIComponent(messageText)}`;
-      
-      Linking.openURL(messageUrl).catch(() =>
-        Alert.alert("Error", "Message app could not be opened.")
-      );
-    };
-    const handleWhatsAppPress = () => {
-      const messageText = generateMessageText();
-      const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(messageText)}`;
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return "N/A";
+    }
+  };
+
+  // Function to format time in HH:MM AM/PM format
+  const formatTime = (timeString: string) => {
+    if (!timeString) return "N/A";
     
-      Linking.openURL(whatsappUrl).catch(() =>
-        Alert.alert("Error", "WhatsApp is not installed or could not be opened.")
-      );
-    };
-    const RhandleWhatsAppPress = () => {
-      const messageText = generateMessageText();
-      const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(messageText)}`;
-    
-      Linking.openURL(whatsappUrl).catch(() =>
-        Alert.alert("Error", "WhatsApp is not installed or could not be opened.")
-      );
-    };
-    const handlePrintPress = async () => {
-      if (!orderData) {
-        Alert.alert("Error", "No order data available to print.");
-        return;
+    try {
+      // Check if timeString is already in HH:MM format
+      if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeString)) {
+        const [hours, minutes] = timeString.split(':');
+        const date = new Date();
+        date.setHours(parseInt(hours, 10));
+        date.setMinutes(parseInt(minutes, 10));
+        return date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
       }
       
-    
-      const htmlContent = `
-        <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              h2 { color: #047857; text-align: center; }
-              .section { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-              .title { font-weight: bold; margin-bottom: 5px; font-size: 16px; }
-              .text { margin-bottom: 5px; font-size: 14px; }
-              ul { padding-left: 20px; }
-            </style>
-          </head>
-          <body>
-            <h2>🖨 Computer Empire - Order Receipt</h2>
-    
-            <div class="section">
-              <div class="title">Receiver Details</div>
-              <div class="text">👤 Name: ${orderData.name}</div>
-              <div class="text">💼 Designation: ${orderData.designation}</div>
-            </div>
-    
-            ${orderData.selectedCustomer ? `
-              <div class="section">
-                <div class="title">Customer Details</div>
-                <div class="text">👤 Name: ${orderData.selectedCustomer.name}</div>
-                <div class="text">📞 Number: ${orderData.selectedCustomer.number}</div>
-                <div class="text">📍 Address: ${orderData.selectedCustomer.address}</div>
-              </div>
-            ` : ""}
-    
-            <div class="section">
-              <div class="title">Order Details</div>
-              <div class="text">📱 Device Model: ${orderData.orderDetails.deviceModel}</div>
-              <div class="text">📦 Order Status: ${orderData.orderDetails.orderStatus}</div>
-              <div class="text">🔧 Problems:</div>
-              <ul>
-                ${orderData.orderDetails.problems.map((problem: string) => `<li>${problem}</li>`).join("")}
-              </ul>
-            </div>
-    
-            <div class="section">
-              <div class="title">Estimate Details</div>
-              <div class="text">💰 Repair Cost: ₹${orderData.estimateDetails.repairCost}</div>
-              <div class="text">💵 Advance Paid: ₹${orderData.estimateDetails.advancePaid}</div>
-              <div class="text">📅 Pickup Date: ${orderData.estimateDetails.pickupDate || "N/A"}</div>
-              <div class="text">⏰ Pickup Time: ${orderData.estimateDetails.pickupTime || "N/A"}</div>
-            </div>
-    
-            <div class="section">
-              <div class="title">Repair Partner Details</div>
-              <div class="text">🏢 Repair Station: ${orderData.repairPartnerDetails.selectedRepairStation || "N/A"}</div>
-              <div class="text">🏠 In-House Option: ${orderData.repairPartnerDetails.selectedInHouseOption || "N/A"}</div>
-              <div class="text">🏬 Service Center: ${orderData.repairPartnerDetails.selectedServiceCenterOption || "N/A"}</div>
-              <div class="text">📅 Pickup Date: ${orderData.repairPartnerDetails.pickupDate || "N/A"}</div>
-              <div class="text">⏰ Pickup Time: ${orderData.repairPartnerDetails.pickupTime || "N/A"}</div>
-            </div>
-          </body>
-        </html>
-      `;
-    
-      try {
-        // Generate PDF from HTML
-        const { uri } = await Print.printToFileAsync({ html: htmlContent });
-    
-        console.log("📄 PDF saved at:", uri);
-    
-        // Share the generated PDF file
-        await shareAsync(uri, { mimeType: "application/pdf" });
-    
-      } catch (error) {
-        console.error("🛑 Print Error:", error);
-        Alert.alert("Error", "Failed to generate or share PDF.");
-      }
-    };
-   
+      // If it's a full date string
+      const date = new Date(timeString);
+      if (isNaN(date.getTime())) return "N/A";
+      
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      console.error("Time formatting error:", error);
+      return "N/A";
+    }
+  };
   
-   
+  const handlePhonePress = () => {
+    const phoneUrl = `tel:${phoneNumber}`;
+    Linking.openURL(phoneUrl).catch(() =>
+      Alert.alert("Error", "Phone app could not be opened.")
+    );
+  };
+  const RhandlePhonePress = () => {
+    const phoneUrl = `tel:${phoneNumber}`;
+    Linking.openURL(phoneUrl).catch(() =>
+      Alert.alert("Error", "Phone app could not be opened.")
+    );
+  };
+
+  const generateMessageText = () => {
+    if (!orderData) return "No order details available.";
+  
+    return `
+📌 *Computer Empire - Order Update* 📌
+👤 *Receiver:* ${orderData.name}
+💼 *Designation:* ${orderData.designation}
+${orderData.selectedCustomer ? `
+👤 *Customer:* ${orderData.selectedCustomer.name}
+📞 *Contact:* ${orderData.selectedCustomer.number}
+📍 *Address:* ${orderData.selectedCustomer.address}
+` : ""}
+📱 *Device Model:* ${orderData.orderDetails.deviceModel}
+📦 *Order Status:* ${orderData.orderDetails.orderStatus}
+🔧 *Problems:* ${orderData.orderDetails.problems.join(", ")}
+💰 *Estimated Repair Cost:* ₹${orderData.estimateDetails.repairCost}
+💵 *Advance Paid:* ₹${orderData.estimateDetails.advancePaid}
+📅 *Pickup Date:* ${formatDate(orderData.estimateDetails.pickupDate)}
+⏰ *Pickup Time:* ${formatTime(orderData.estimateDetails.pickupTime)}
+🏢 *Repair Partner:* ${orderData.repairPartnerDetails.selectedRepairStation || "N/A"}
+🏠 *In-House Option:* ${orderData.repairPartnerDetails.selectedInHouseOption || "N/A"}
+🏬 *Service Center:* ${orderData.repairPartnerDetails.selectedServiceCenterOption || "N/A"}
+📅 *Repair Pickup Date:* ${formatDate(orderData.repairPartnerDetails.pickupDate)}
+⏰ *Repair Pickup Time:* ${formatTime(orderData.repairPartnerDetails.pickupTime)}
+
+📞 For any queries, please contact us.
+  `.trim();
+  };
+  
+  const handleMessagePress = () => {
+    const messageText = generateMessageText();
+    const messageUrl = `sms:${phoneNumber}?body=${encodeURIComponent(messageText)}`;
+    
+    Linking.openURL(messageUrl).catch(() =>
+      Alert.alert("Error", "Message app could not be opened.")
+    );
+  };
+  const RhandleMessagePress = () => {
+    const messageText = generateMessageText();
+    const messageUrl = `sms:${phoneNumber}?body=${encodeURIComponent(messageText)}`;
+    
+    Linking.openURL(messageUrl).catch(() =>
+      Alert.alert("Error", "Message app could not be opened.")
+    );
+  };
+  const handleWhatsAppPress = () => {
+    const messageText = generateMessageText();
+    const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(messageText)}`;
+  
+    Linking.openURL(whatsappUrl).catch(() =>
+      Alert.alert("Error", "WhatsApp is not installed or could not be opened.")
+    );
+  };
+  const RhandleWhatsAppPress = () => {
+    const messageText = generateMessageText();
+    const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(messageText)}`;
+  
+    Linking.openURL(whatsappUrl).catch(() =>
+      Alert.alert("Error", "WhatsApp is not installed or could not be opened.")
+    );
+  };
+  const handlePrintPress = async () => {
+    if (!orderData) {
+      Alert.alert("Error", "No order data available to print.");
+      return;
+    }
+    
+  
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h2 { color: #047857; text-align: center; }
+            .section { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+            .title { font-weight: bold; margin-bottom: 5px; font-size: 16px; }
+            .text { margin-bottom: 5px; font-size: 14px; }
+            ul { padding-left: 20px; }
+          </style>
+        </head>
+        <body>
+          <h2>🖨 Computer Empire - Order Receipt</h2>
+  
+          <div class="section">
+            <div class="title">Receiver Details</div>
+            <div class="text">👤 Name: ${orderData.name}</div>
+            <div class="text">💼 Designation: ${orderData.designation}</div>
+          </div>
+  
+          ${orderData.selectedCustomer ? `
+            <div class="section">
+              <div class="title">Customer Details</div>
+              <div class="text">👤 Name: ${orderData.selectedCustomer.name}</div>
+              <div class="text">📞 Number: ${orderData.selectedCustomer.number}</div>
+              <div class="text">📍 Address: ${orderData.selectedCustomer.address}</div>
+            </div>
+          ` : ""}
+  
+          <div class="section">
+            <div class="title">Order Details</div>
+            <div class="text">📱 Device Model: ${orderData.orderDetails.deviceModel}</div>
+            <div class="text">📦 Order Status: ${orderData.orderDetails.orderStatus}</div>
+            <div class="text">🔧 Problems:</div>
+            <ul>
+              ${orderData.orderDetails.problems.map((problem: string) => `<li>${problem}</li>`).join("")}
+            </ul>
+          </div>
+  
+          <div class="section">
+            <div class="title">Estimate Details</div>
+            <div class="text">💰 Repair Cost: ₹${orderData.estimateDetails.repairCost}</div>
+            <div class="text">💵 Advance Paid: ₹${orderData.estimateDetails.advancePaid}</div>
+            <div class="text">📅 Pickup Date: ${formatDate(orderData.estimateDetails.pickupDate)}</div>
+            <div class="text">⏰ Pickup Time: ${formatTime(orderData.estimateDetails.pickupTime)}</div>
+          </div>
+  
+          <div class="section">
+            <div class="title">Repair Partner Details</div>
+            <div class="text">🏢 Repair Station: ${orderData.repairPartnerDetails.selectedRepairStation || "N/A"}</div>
+            <div class="text">🏠 In-House Option: ${orderData.repairPartnerDetails.selectedInHouseOption || "N/A"}</div>
+            <div class="text">🏬 Service Center: ${orderData.repairPartnerDetails.selectedServiceCenterOption || "N/A"}</div>
+            <div class="text">📅 Pickup Date: ${formatDate(orderData.repairPartnerDetails.pickupDate)}</div>
+            <div class="text">⏰ Pickup Time: ${formatTime(orderData.repairPartnerDetails.pickupTime)}</div>
+          </div>
+        </body>
+      </html>
+    `;
+  
+    try {
+      // Generate PDF from HTML
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+  
+      console.log("📄 PDF saved at:", uri);
+  
+      // Share the generated PDF file
+      await shareAsync(uri, { mimeType: "application/pdf" });
+  
+    } catch (error) {
+      console.error("🛑 Print Error:", error);
+      Alert.alert("Error", "Failed to generate or share PDF.");
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -215,12 +259,6 @@ const ViewOrders = () => {
       </SafeAreaView>
     );
   }
-  console.log(orderData)
-  function getNumber(Number: string) {
-    const number = orderData.selectedCustomer.number;
-    return number;
-  }
- 
 
   return (
     <SafeAreaView style={styles.container}>
@@ -230,9 +268,9 @@ const ViewOrders = () => {
           <AntDesign name="arrowleft" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
-        <TouchableOpacity onPress={() => router.push(`./edit_orders/${id}`)}>
-          <AntDesign name="edit" size={24} color="#fff" />
-        </TouchableOpacity>
+         <TouchableOpacity >
+                              <AntDesign name="book" size={22} color="#fff" />
+                            </TouchableOpacity>
       </View>
 
       {/* Scrollable Content */}
@@ -270,9 +308,8 @@ const ViewOrders = () => {
           <Text style={styles.sectionTitle}>Estimate Details</Text>
           <Text style={styles.text}>💰 Repair Cost: ₹{orderData.estimateDetails.repairCost}</Text>
           <Text style={styles.text}>💵 Advance Paid: ₹{orderData.estimateDetails.advancePaid}</Text>
-          <Text style={styles.text}>📅 Pickup Date: {orderData.estimateDetails.pickupDate || "N/A"}</Text>
-          <Text style={styles.text}>⏰ Pickup Time: {orderData.estimateDetails.pickupTime || "N/A"}</Text>
-          
+          <Text style={styles.text}>📅 Pickup Date: {formatDate(orderData.estimateDetails.pickupDate)}</Text>
+          <Text style={styles.text}>⏰ Pickup Time: {formatTime(orderData.estimateDetails.pickupTime)}</Text>
         </View>
 
         <View style={styles.section}>
@@ -280,8 +317,8 @@ const ViewOrders = () => {
           <Text style={styles.text}>🏢 Repair Station: {orderData.repairPartnerDetails.selectedRepairStation || "N/A"}</Text>
           <Text style={styles.text}>🏠 In-House Option: {orderData.repairPartnerDetails.selectedInHouseOption || "N/A"}</Text>
           <Text style={styles.text}>🏬 Service Center Option: {orderData.repairPartnerDetails.selectedServiceCenterOption || "N/A"}</Text>
-          <Text style={styles.text}>📅 Pickup Date: {orderData.repairPartnerDetails.pickupDate || "N/A"}</Text>
-          <Text style={styles.text}>⏰ Pickup Time: {orderData.repairPartnerDetails.pickupTime || "N/A"}</Text>
+          <Text style={styles.text}>📅 Pickup Date: {formatDate(orderData.repairPartnerDetails.pickupDate)}</Text>
+          <Text style={styles.text}>⏰ Pickup Time: {formatTime(orderData.repairPartnerDetails.pickupTime)}</Text>
           <View style={styles.iconsContainer}>
             <TouchableOpacity onPress={RhandlePhonePress}>
               <Ionicons name="call-outline" size={32} color="#4B5563" />
@@ -295,35 +332,33 @@ const ViewOrders = () => {
           </View>
         </View>
 
-
         <View style={styles.section}>
-  <Text style={styles.text}>🔌 Power Adapter: {orderData.deviceKYC.isPowerAdapterChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
-  <Text style={styles.text}>⌨️ Keyboard: {orderData.deviceKYC.isKeyboardChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
-  <Text style={styles.text}>🖱 Mouse: {orderData.deviceKYC.isMouseChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
-  <Text style={styles.text}>🛡 Device on Warranty: {orderData.deviceKYC.isDeviceOnWarranty ? "✅ Yes" : "❌ No"}</Text>
-  <Text style={styles.text}>🎒 Other Accessories: {orderData.deviceKYC.otherAccessories || "N/A"}</Text>
-  <Text style={styles.text}>📝 Additional Details: {orderData.deviceKYC.additionalDetailsList.length > 0 ? orderData.deviceKYC.additionalDetailsList.join(", ") : "N/A"}</Text>
-  <Text style={styles.text}>🔒 Lock Code: {orderData.deviceKYC.lockCode || "N/A"}</Text>
+          <Text style={styles.text}>🔌 Power Adapter: {orderData.deviceKYC.isPowerAdapterChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
+          <Text style={styles.text}>⌨️ Keyboard: {orderData.deviceKYC.isKeyboardChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
+          <Text style={styles.text}>🖱 Mouse: {orderData.deviceKYC.isMouseChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
+          <Text style={styles.text}>🛡 Device on Warranty: {orderData.deviceKYC.isDeviceOnWarranty ? "✅ Yes" : "❌ No"}</Text>
+          <Text style={styles.text}>🎒 Other Accessories: {orderData.deviceKYC.otherAccessories || "N/A"}</Text>
+          <Text style={styles.text}>📝 Additional Details: {orderData.deviceKYC.additionalDetailsList.length > 0 ? orderData.deviceKYC.additionalDetailsList.join(", ") : "N/A"}</Text>
+          <Text style={styles.text}>🔒 Lock Code: {orderData.deviceKYC.lockCode || "N/A"}</Text>
 
-  {/* Load and display images */}
-  {orderData.deviceKYC.cameraData.length > 0 ? (
-    <ScrollView horizontal style={styles.imageContainer}>
-      {orderData.deviceKYC.cameraData.map((imageUri:any, index:any) => (
-        <Image
-          key={index}
-          source={{ uri:imageUri }}
-          style={styles.image}
-        />
-      ))}
-    </ScrollView>
-  ) : (
-    <Text style={styles.text}>📷 No images available.</Text>
-  )}
-</View>
+          {/* Load and display images */}
+          {orderData.deviceKYC.cameraData.length > 0 ? (
+            <ScrollView horizontal style={styles.imageContainer}>
+              {orderData.deviceKYC.cameraData.map((imageUri:any, index:any) => (
+                <Image
+                  key={index}
+                  source={{ uri:imageUri }}
+                  style={styles.image}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.text}>📷 No images available.</Text>
+          )}
+        </View>
       </ScrollView>
 
       {/* Bottom Buttons */}
-    
       <BottomBar
         onPhonePress={handlePhonePress}
         onMessagePress={handleMessagePress}
@@ -372,7 +407,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   listItem: {
-    fontSize: 14, // Keep the font size consistent with other text
+    fontSize: 14,
     marginLeft: 10,
     color: "#333",
   },
@@ -386,7 +421,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     minWidth: 120,
-    marginHorizontal: 8, // Adds spacing between buttons
+    marginHorizontal: 8,
   },
   deleteButton: {
     backgroundColor: "#DC2626",
@@ -398,7 +433,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     textAlign: "center",
-    fontSize: 14, // Reduce to match the text style
+    fontSize: 14,
     marginTop: 20,
     color: "red",
   },
@@ -418,6 +453,5 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 });
-
 
 export default ViewOrders;

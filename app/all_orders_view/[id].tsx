@@ -57,12 +57,47 @@ interface OrderData {
 }
 
 const ViewOrders = () => {
-  const { id } = useLocalSearchParams(); // Get order ID from navigation params
-  
+  const { id } = useLocalSearchParams();
   const [orderData, setOrderData] = useState<any | null>(null);
   const phoneNumber = orderData?.selectedCustomer?.number || "";
 
   const { getFormDataById, deleteFormData } = useAppwriteFormData();
+
+  // Format date to readable format (e.g., "Jan 15, 2023")
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  // Format time to readable format (e.g., "2:30 PM")
+  const formatTime = (timeString: string | null): string => {
+    if (!timeString) return "N/A";
+    const [hours, minutes] = timeString.split(":");
+    const date = new Date();
+    date.setHours(parseInt(hours));
+    date.setMinutes(parseInt(minutes));
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  // Format warranty expiry date if exists
+  const formatWarrantyDate = (dateString: string | null): string => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   const handlePhonePress = () => {
     const phoneUrl = `tel:${phoneNumber}`;
@@ -95,13 +130,13 @@ ${orderData.selectedCustomer ? `
 🔧 *Problems:* ${orderData.orderDetails.problems.join(", ")}
 💰 *Estimated Repair Cost:* ₹${orderData.estimateDetails.repairCost}
 💵 *Advance Paid:* ₹${orderData.estimateDetails.advancePaid}
-📅 *Pickup Date:* ${orderData.estimateDetails.pickupDate || "N/A"}
-⏰ *Pickup Time:* ${orderData.estimateDetails.pickupTime || "N/A"}
+📅 *Pickup Date:* ${formatDate(orderData.estimateDetails.pickupDate)}
+⏰ *Pickup Time:* ${formatTime(orderData.estimateDetails.pickupTime)}
 🏢 *Repair Partner:* ${orderData.repairPartnerDetails.selectedRepairStation || "N/A"}
 🏠 *In-House Option:* ${orderData.repairPartnerDetails.selectedInHouseOption || "N/A"}
 🏬 *Service Center:* ${orderData.repairPartnerDetails.selectedServiceCenterOption || "N/A"}
-📅 *Repair Pickup Date:* ${orderData.repairPartnerDetails.pickupDate || "N/A"}
-⏰ *Repair Pickup Time:* ${orderData.repairPartnerDetails.pickupTime || "N/A"}
+📅 *Repair Pickup Date:* ${formatDate(orderData.repairPartnerDetails.pickupDate)}
+⏰ *Repair Pickup Time:* ${formatTime(orderData.repairPartnerDetails.pickupTime)}
 
 📞 For any queries, please contact us.
     `.trim();
@@ -193,8 +228,8 @@ ${orderData.selectedCustomer ? `
             <div class="title">Estimate Details</div>
             <div class="text">💰 Repair Cost: ₹${orderData.estimateDetails.repairCost}</div>
             <div class="text">💵 Advance Paid: ₹${orderData.estimateDetails.advancePaid}</div>
-            <div class="text">📅 Pickup Date: ${orderData.estimateDetails.pickupDate || "N/A"}</div>
-            <div class="text">⏰ Pickup Time: ${orderData.estimateDetails.pickupTime || "N/A"}</div>
+            <div class="text">📅 Pickup Date: ${formatDate(orderData.estimateDetails.pickupDate)}</div>
+            <div class="text">⏰ Pickup Time: ${formatTime(orderData.estimateDetails.pickupTime)}</div>
           </div>
 
           <div class="section">
@@ -202,24 +237,18 @@ ${orderData.selectedCustomer ? `
             <div class="text">🏢 Repair Station: ${orderData.repairPartnerDetails.selectedRepairStation || "N/A"}</div>
             <div class="text">🏠 In-House Option: ${orderData.repairPartnerDetails.selectedInHouseOption || "N/A"}</div>
             <div class="text">🏬 Service Center: ${orderData.repairPartnerDetails.selectedServiceCenterOption || "N/A"}</div>
-            <div class="text">📅 Pickup Date: ${orderData.repairPartnerDetails.pickupDate || "N/A"}</div>
-            <div class="text">⏰ Pickup Time: ${orderData.repairPartnerDetails.pickupTime || "N/A"}</div>
+            <div class="text">📅 Pickup Date: ${formatDate(orderData.repairPartnerDetails.pickupDate)}</div>
+            <div class="text">⏰ Pickup Time: ${formatTime(orderData.repairPartnerDetails.pickupTime)}</div>
           </div>
         </body>
       </html>
     `;
 
     try {
-      // Generate PDF from HTML
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
-
-      console.log("📄 PDF saved at:", uri);
-
-      // Share the generated PDF file
       await shareAsync(uri, { mimeType: "application/pdf" });
-
     } catch (error) {
-      console.error("🛑 Print Error:", error);
+      console.error("Print Error:", error);
       Alert.alert("Error", "Failed to generate or share PDF.");
     }
   };
@@ -251,9 +280,10 @@ ${orderData.selectedCustomer ? `
           <AntDesign name="arrowleft" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
-        <TouchableOpacity onPress={() => router.push(`./edit_orders/${id}`)}>
-          <AntDesign name="edit" size={24} color="#fff" />
-        </TouchableOpacity>
+         <TouchableOpacity >
+                      <AntDesign name="book" size={22} color="#fff" />
+                    </TouchableOpacity>
+                  
       </View>
 
       {/* Scrollable Content */}
@@ -291,8 +321,8 @@ ${orderData.selectedCustomer ? `
           <Text style={styles.sectionTitle}>Estimate Details</Text>
           <Text style={styles.text}>💰 Repair Cost: ₹{orderData.estimateDetails.repairCost}</Text>
           <Text style={styles.text}>💵 Advance Paid: ₹{orderData.estimateDetails.advancePaid}</Text>
-          <Text style={styles.text}>📅 Pickup Date: {orderData.estimateDetails.pickupDate || "N/A"}</Text>
-          <Text style={styles.text}>⏰ Pickup Time: {orderData.estimateDetails.pickupTime || "N/A"}</Text>
+          <Text style={styles.text}>📅 Pickup Date: {formatDate(orderData.estimateDetails.pickupDate)}</Text>
+          <Text style={styles.text}>⏰ Pickup Time: {formatTime(orderData.estimateDetails.pickupTime)}</Text>
         </View>
 
         <View style={styles.section}>
@@ -300,8 +330,8 @@ ${orderData.selectedCustomer ? `
           <Text style={styles.text}>🏢 Repair Station: {orderData.repairPartnerDetails.selectedRepairStation || "N/A"}</Text>
           <Text style={styles.text}>🏠 In-House Option: {orderData.repairPartnerDetails.selectedInHouseOption || "N/A"}</Text>
           <Text style={styles.text}>🏬 Service Center Option: {orderData.repairPartnerDetails.selectedServiceCenterOption || "N/A"}</Text>
-          <Text style={styles.text}>📅 Pickup Date: {orderData.repairPartnerDetails.pickupDate || "N/A"}</Text>
-          <Text style={styles.text}>⏰ Pickup Time: {orderData.repairPartnerDetails.pickupTime || "N/A"}</Text>
+          <Text style={styles.text}>📅 Pickup Date: {formatDate(orderData.repairPartnerDetails.pickupDate)}</Text>
+          <Text style={styles.text}>⏰ Pickup Time: {formatTime(orderData.repairPartnerDetails.pickupTime)}</Text>
           <View style={styles.iconsContainer}>
             <TouchableOpacity onPress={RhandlePhonePress}>
               <Ionicons name="call-outline" size={32} color="#4B5563" />
@@ -316,10 +346,14 @@ ${orderData.selectedCustomer ? `
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Device KYC Details</Text>
           <Text style={styles.text}>🔌 Power Adapter: {orderData.deviceKYC.isPowerAdapterChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
           <Text style={styles.text}>⌨️ Keyboard: {orderData.deviceKYC.isKeyboardChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
           <Text style={styles.text}>🖱 Mouse: {orderData.deviceKYC.isMouseChecked ? "✅ Checked" : "❌ Not Checked"}</Text>
           <Text style={styles.text}>🛡 Device on Warranty: {orderData.deviceKYC.isDeviceOnWarranty ? "✅ Yes" : "❌ No"}</Text>
+          {orderData.deviceKYC.isDeviceOnWarranty && (
+            <Text style={styles.text}>📅 Warranty Expiry: {formatWarrantyDate(orderData.deviceKYC.warrantyExpiryDate)}</Text>
+          )}
           <Text style={styles.text}>🎒 Other Accessories: {orderData.deviceKYC.otherAccessories || "N/A"}</Text>
           <Text style={styles.text}>📝 Additional Details: {orderData.deviceKYC.additionalDetailsList.length > 0 ? orderData.deviceKYC.additionalDetailsList.join(", ") : "N/A"}</Text>
           <Text style={styles.text}>🔒 Lock Code: {orderData.deviceKYC.lockCode || "N/A"}</Text>
@@ -394,29 +428,9 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: "#333",
   },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    padding: 16,
-  },
-  button: {
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    minWidth: 120,
-    marginHorizontal:8,
-  },
-  deleteButton: {
-    backgroundColor: "#DC2626",
-  },
-  buttonText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
   errorText: {
     textAlign: "center",
-    fontSize: 14, // Reduce to match the text style
+    fontSize: 14,
     marginTop: 20,
     color: "red",
   },
@@ -436,6 +450,5 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 });
-
 
 export default ViewOrders;

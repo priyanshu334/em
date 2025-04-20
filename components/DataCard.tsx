@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
 
 interface DataCardProps {
+  serialNo: number; // Added serial number prop
+  orderId: string;
   orderStatus: string;
   orderModel: string;
   customerName: string;
@@ -32,6 +34,8 @@ const getStatusColor = (status: string) => {
 };
 
 const DataCard: React.FC<DataCardProps> = ({
+  serialNo,
+  orderId,
   orderStatus,
   orderModel,
   customerName,
@@ -46,11 +50,17 @@ const DataCard: React.FC<DataCardProps> = ({
     <View style={styles.card}>
       <Image source={{ uri: imageUrl }} style={styles.image} />
       <View style={styles.content}>
+        <View style={styles.headerRow}>
+          <Text style={styles.serialNo}>#{serialNo}</Text>
+          <Text style={styles.orderId}>Order Id: {orderId.slice(10)}</Text>
+          <Text style={[styles.statusBadge, { backgroundColor: getStatusColor(orderStatus) }]}>
+            {orderStatus}
+          </Text>
+        </View>
         <Text style={styles.title}>{customerName}</Text>
-        <Text style={[styles.subtitle, { color: getStatusColor(orderStatus) }]}>Order Status: {orderStatus}</Text>
-        <Text style={styles.subtitle}>Order Model: {orderModel}</Text>
+        <Text style={styles.subtitle}>Model: {orderModel}</Text>
         <Text style={styles.subtitle}>Contact: {customerNumber}</Text>
-        <Text style={styles.subtitle}>Pickup Date: {date}</Text>
+        <Text style={styles.subtitle}>Pickup: {date}</Text>
 
         <View style={styles.actionButtons}>
           <TouchableOpacity onPress={onEdit} style={styles.editButton}>
@@ -83,12 +93,38 @@ const styles = StyleSheet.create({
   },
   image: {
     width: 120,
-    height:210,
+    height: 210,
     borderRadius: 8,
     marginRight: 16,
   },
   content: {
     flex: 1,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  serialNo: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#007bff",
+    marginRight: 8,
+  },
+  orderId: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontSize: 12,
+    color: "white",
+    fontWeight: "bold",
   },
   title: {
     fontSize: 16,

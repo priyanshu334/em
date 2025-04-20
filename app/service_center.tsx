@@ -134,10 +134,7 @@ export default function ServiceCenter() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace("/")}>
-          <AntDesign name="arrowleft" size={24} color="#fff" />
-        </TouchableOpacity>
-        
+       
         <Text style={styles.headerTitle}>
           Service Centers
         </Text>

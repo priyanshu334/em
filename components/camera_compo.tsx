@@ -1,9 +1,8 @@
-import React, { useState } from "react";
-import { CameraView, CameraType, FlashMode } from "expo-camera";
+import React, { useEffect, useState } from "react";
+import { CameraView, useCameraPermissions, CameraType, FlashMode } from "expo-camera";
 import * as FileSystem from "expo-file-system";
 import {
   Button,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,13 +14,26 @@ interface CameraComponentProps {
   onClose: () => void;
 }
 
-const CameraComponent: React.FC<CameraComponentProps> = ({
-  onPhotoCaptured,
-  onClose,
-}) => {
+const CameraComponent: React.FC<CameraComponentProps> = ({ onPhotoCaptured, onClose }) => {
   const [facing, setFacing] = useState<CameraType>("back");
   const [flashMode, setFlashMode] = useState<FlashMode>("off");
-  let cameraRef: any = null;
+  const [cameraRef, setCameraRef] = useState<any>(null);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  useEffect(() => {
+    if (!permission || !permission.granted) {
+      requestPermission();
+    }
+  }, [permission]);
+
+  if (!permission || !permission.granted) {
+    return (
+      <View style={styles.permissionContainer}>
+        <Text style={styles.permissionText}>Camera permission is required</Text>
+        <Button title="Grant Permission" onPress={requestPermission} />
+      </View>
+    );
+  }
 
   async function capturePhoto() {
     if (cameraRef) {
@@ -31,16 +43,6 @@ const CameraComponent: React.FC<CameraComponentProps> = ({
       // Save the captured image to the file system
       await FileSystem.moveAsync({ from: photo.uri, to: filePath });
 
-
-
-
-
-
-
-
-
-
-      
       onPhotoCaptured(filePath);
       onClose(); // Close camera view after capture
     }
@@ -58,7 +60,7 @@ const CameraComponent: React.FC<CameraComponentProps> = ({
 
   return (
     <CameraView
-      ref={(ref) => (cameraRef = ref)}
+      ref={setCameraRef}
       style={styles.camera}
       facing={facing}
       flash={flashMode}
@@ -70,7 +72,6 @@ const CameraComponent: React.FC<CameraComponentProps> = ({
         <TouchableOpacity style={styles.button} onPress={capturePhoto}>
           <Text style={styles.text}>Take Picture</Text>
         </TouchableOpacity>
-    
         <TouchableOpacity style={styles.button} onPress={onClose}>
           <Text style={styles.text}>Close</Text>
         </TouchableOpacity>
@@ -104,5 +105,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginHorizontal: 10,
     color: "white",
+  },
+  permissionContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  permissionText: {
+    fontSize: 18,
+    marginBottom: 10,
   },
 });
